@@ -338,8 +338,11 @@ public class Paint extends JPanel {
             return;
         }
 
-        // Array para almacenar las coordenadas de los bloques adyacentes
-        int[][] neighbors = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+        int[][] neighbors = {
+                {-1,-1},{0,-1},{1,-1},
+                {-1, 0},       {1, 0},
+                {-1, 1},{0, 1},{1, 1}
+        };
 
         // Recorre todos los bloques adyacentes
         for (int[] neighbor : neighbors) {

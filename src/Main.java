@@ -67,12 +67,13 @@ public class Main {
 
                     if(paintPanel.didWin()){
                         JOptionPane.showConfirmDialog(null,"WIN FOR REAL", null, JOptionPane.DEFAULT_OPTION);
+
                     }
                 }
 
                 if(e.getButton() == MouseEvent.BUTTON3){
 
-                    if(paintPanel.didLose()){
+                    if(paintPanel.didLose() || paintPanel.didWin()){
                         return;
                     }
 
