@@ -4,17 +4,14 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Point;
 import java.awt.image.BufferedImage;
-import java.awt.image.ImageObserver;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.Stack;
 
 public class Paint extends JPanel {
 
     private BufferedImage buffer;
-    private BufferedImage gridBuffer[] = new BufferedImage[15];
+    private BufferedImage gridBuffer[] = new BufferedImage[13];
     private Block gridBlocks[][];
     private Logic logic;
+    private States.game stateGame = States.game.PLAYNG;
 
     /**
      * 1. Initial
@@ -47,6 +44,7 @@ public class Paint extends JPanel {
         graphics = (Graphics) buffer.getGraphics();
         graphics.setColor(Color.black);
 
+        stateGame = States.game.PLAYNG;
         initGridBuffer();
         getBufferImage();
         setGridValues();
@@ -57,6 +55,7 @@ public class Paint extends JPanel {
         buffer = new BufferedImage(size.width, size.height, BufferedImage.TRANSLUCENT);
         super.setSize(size);
 
+        stateGame = States.game.PLAYNG;
         initGridBuffer();
         getBufferImage();
         setGridValues();
@@ -194,7 +193,7 @@ public class Paint extends JPanel {
 
         setBufferPixel(gridBuffer[9],Color.LIGHT_GRAY); // Initial
         setBufferPixel(gridBuffer[10],Color.BLACK);     // Bomb
-        setBufferPixel(gridBuffer[11],Color.YELLOW);    // Flag
+        setBufferPixel(gridBuffer[11],Color.ORANGE);    // Flag
         setBufferPixel(gridBuffer[12],Color.RED);       // Bomb Exploted
 
         drawNumberByBomb(Numbers.ONE, gridBuffer[1]);
@@ -205,6 +204,7 @@ public class Paint extends JPanel {
         drawNumberByBomb(Numbers.SIX, gridBuffer[6]);
         drawNumberByBomb(Numbers.SEVEN, gridBuffer[7]);
         drawNumberByBomb(Numbers.EIGHT, gridBuffer[8]);
+        drawNumberByBomb(Numbers.FLAG, gridBuffer[11]);
 
     }
 
@@ -243,9 +243,20 @@ public class Paint extends JPanel {
         for(int i = 0; i < gridBlocks.length; i++){
             for(int j = 0; j < gridBlocks[i].length; j++){
                 Block block = gridBlocks[i][j];
-                switch (block.mineSweeper){
-                    case EMPTY -> g.drawImage(gridBuffer[9], block.x, block.y, this);
-                    case MINE -> g.drawImage(gridBuffer[10], block.x, block.y,this);
+
+                switch(block.cell){
+                    case COVERED -> g.drawImage(gridBuffer[9], block.x, block.y, this);
+                    case FLAGGED -> g.drawImage(gridBuffer[11], block.x, block.y, this);
+                    case EXPLOTED -> g.drawImage(gridBuffer[12], block.x, block.y, this);
+                }
+
+                if (block.cell != States.cell.UNCOVERED){
+                    continue;
+                }
+
+                if(block.mineSweeper == States.mineSweeper.MINE){
+                    g.drawImage(gridBuffer[10], block.x, block.y,this);
+                    continue;
                 }
 
                 switch (block.nearBombNumber){
@@ -261,6 +272,149 @@ public class Paint extends JPanel {
                 }
             }
         }
+    }
+
+    public void onFlagBlock(int width, int heigth){
+        int x = width / width_bufferGrid;
+        int y = heigth / height_bufferGrid;
+
+        if (x < 0 || y < 0 || x >= rows || y >= cols){
+            return;
+        }
+
+        if (gridBlocks[x][y].cell == States.cell.UNCOVERED){
+            return;
+        }
+
+        if(gridBlocks[x][y].cell != States.cell.FLAGGED){
+            gridBlocks[x][y].cell = States.cell.FLAGGED;
+        }else{
+            gridBlocks[x][y].cell = States.cell.COVERED;
+        }
+
+        isWin();
+
+    }
+
+    public void onClickBlock(int width, int heigth){
+
+        int x = width / width_bufferGrid;
+        int y = heigth / height_bufferGrid;
+
+        if (x < 0 || y < 0 || x >= rows || y >= cols){
+            return;
+        }
+
+        if (gridBlocks[x][y].cell == States.cell.UNCOVERED){
+            return;
+        }
+
+        if (gridBlocks[x][y].cell == States.cell.FLAGGED){
+            return;
+        }
+
+        onUncoveredBlock(x,y);
+        isWin();
+    }
+
+    private void onUncoveredBlock(int x, int y){
+        switch(gridBlocks[x][y].mineSweeper){
+            case EMPTY: {
+                floodFillBlock(x,y);
+                return;
+            }
+            case MINE:
+            {
+                stateGame = States.game.LOST;
+                break;
+            }
+        }
+
+        gridBlocks[x][y].cell = States.cell.UNCOVERED;
+    }
+
+    public void floodFillBlock(int x, int y){
+        if (gridBlocks[x][y].cell == States.cell.UNCOVERED) {
+            return;
+        }
+
+        // Array para almacenar las coordenadas de los bloques adyacentes
+        int[][] neighbors = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+
+        // Recorre todos los bloques adyacentes
+        for (int[] neighbor : neighbors) {
+            int newX = x + neighbor[0];
+            int newY = y + neighbor[1];
+
+            // Verifica si las coordenadas están dentro de los límites del tablero
+            if (newX >= 0 && newX < rows && newY >= 0 && newY < cols) {
+                gridBlocks[x][y].cell = States.cell.UNCOVERED;
+                if(gridBlocks[x][y].mineSweeper == States.mineSweeper.EMPTY){
+                    floodFillBlock(newX, newY);
+                }
+            }
+        }
+    }
+
+    public boolean didLose(){
+        return stateGame == States.game.LOST;
+    }
+
+    public boolean didWin(){
+        return stateGame == States.game.WON;
+    }
+
+    public void onLose(int xP, int yP){
+        if(stateGame != States.game.LOST){
+            return;
+        }
+
+        int x = xP / width_bufferGrid;
+        int y = yP / height_bufferGrid;
+
+        for(int i = 0; i < rows; i++){
+            for(int j = 0; j < cols; j++){
+                gridBlocks[i][j].cell = States.cell.UNCOVERED;
+            }
+        }
+
+        gridBlocks[x][y].cell = States.cell.EXPLOTED;
+        repaint();
+    }
+
+    public void isWin(){
+
+        if(stateGame == States.game.LOST){
+            return;
+        }
+
+        int sumBlocks = 0;
+
+        for(int i = 0; i < rows; i++){
+            for(int j = 0; j < cols; j++){
+                if(isFinalStateCorrect(i,j)){
+                    sumBlocks += 1;
+                }else{
+                    return;
+                }
+            }
+        }
+
+        if(sumBlocks == cols * rows){
+            stateGame = States.game.WON;
+        }
+    }
+
+    public boolean isFinalStateCorrect(int i, int j){
+        if(gridBlocks[i][j].mineSweeper == States.mineSweeper.MINE && gridBlocks[i][j].cell == States.cell.FLAGGED){
+            return true;
+        }
+
+        if (gridBlocks[i][j].mineSweeper != States.mineSweeper.MINE && gridBlocks[i][j].cell == States.cell.UNCOVERED) {
+            return true;
+        }
+
+        return false;
     }
 
 }
