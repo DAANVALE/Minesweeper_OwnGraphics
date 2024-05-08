@@ -6,7 +6,7 @@ public class Block {
 
     public States.mineSweeper mineSweeper = States.mineSweeper.EMPTY;
     public States.cell cell;
-    public int nearBombNumber = 0;
+    public int nearBombNumber;
 
     public Block(Point position){
         cell = States.cell.COVERED;
